@@ -10,6 +10,9 @@ class SpaceRoombaEnvironment:
         self.grid = np.full((dimension, dimension), '.', dtype=str)
         self.prob_matrix = np.full((dimension, dimension), 1.0 / (dimension**2))
         self.alien_prob_matrix = np.zeros((dimension, dimension))
+        self.crew_prob_matrix = np.full((dimension, dimension), 1 / (dimension**2 - 1))
+        self.alien_prob_matrix = np.full((dimension, dimension), 1 / (dimension**2 - (2*k + 1)**2))
+        
 
         # Initialize positions with placeholders
         self.bot_pos = None
@@ -21,7 +24,9 @@ class SpaceRoombaEnvironment:
         self.crew_pos = self.place_random(exclude=self.bot_pos)
         self.alien_pos = self.place_random(exclude=[self.bot_pos, self.crew_pos], outside_k=True)
         
+        
         self.update_grid()
+        self.update_prob_matrices()
         self.update_alien_prob_matrix_initial()
 
     def place_random(self, exclude=None, outside_k=False):
@@ -49,13 +54,6 @@ class SpaceRoombaEnvironment:
         print('\n'.join([' '.join(row) for row in self.grid]))
         print('\n')
 
-    def sense_crew(self):
-        distance = self.distance(self.bot_pos, self.crew_pos)
-        prob_of_beep = np.exp(-self.alpha * (distance - 1))
-        rand_val = random.random()
-        result = (rand_val < prob_of_beep)
-        print(f"Distance: {distance}, Prob of Beep: {prob_of_beep}, Result: {result}, Random Value: {rand_val}")
-        return result
 
     def move_alien_randomly(self):
         directions = [(0, -1), (-1, 0), (1, 0), (0, 1)] 
@@ -83,71 +81,75 @@ class SpaceRoombaEnvironment:
 
 
 class Bot1(SpaceRoombaEnvironment):
+    
+    def sense_environment(self):
+        beep_detected = random.random() < np.exp(-self.alpha * (self.distance(self.bot_pos, self.crew_pos) - 1))
+        alien_sensed = self.distance(self.bot_pos, self.alien_pos) <= (2 * self.k + 1)
+        return beep_detected, alien_sensed
+    
+    def update_prob_matrices(self, beep_detected, alien_sensed):
+        # Update the crew member probability matrix based on beep detection
+        for x in range(self.dimension):
+            for y in range(self.dimension):
+                distance = self.distance((x, y), self.bot_pos)
+                prob_of_beep = np.exp(-self.alpha * (distance - 1))
+                if beep_detected:
+                    self.crew_prob_matrix[x, y] *= prob_of_beep
+                else:
+                    self.crew_prob_matrix[x, y] *= (1 - prob_of_beep)
+
+        # Normalize the crew member probability matrix
+        self.crew_prob_matrix /= np.sum(self.crew_prob_matrix)
+
+        # Update the alien probability matrix only if the alien is sensed
+        if alien_sensed:
+            for x in range(self.dimension):
+                for y in range(self.dimension):
+                    if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
+                        self.alien_prob_matrix[x, y] *= 2  # Increase probability if within sensing range
+                    else:
+                        self.alien_prob_matrix[x, y] *= 0.5  # Decrease probability if outside sensing range
+
+        # Normalize the alien probability matrix
+        self.alien_prob_matrix /= np.sum(self.alien_prob_matrix)
+        
+    def move_based_on_prob(self):
+        best_move = self.bot_pos
+        best_score = float('-inf')
+
+        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:  
+            nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
+            if 0 <= nx < self.dimension and 0 <= ny < self.dimension:
+                # Calculate a simple score: crew probability minus alien probability
+                score = self.crew_prob_matrix[nx, ny] - self.alien_prob_matrix[nx, ny]
+                if score > best_score:
+                    best_score = score
+                    best_move = (nx, ny)
+
+        self.bot_pos = best_move
+        self.update_grid()
+    
     def run(self):
         steps = 0
         while True:
-            beep_detected = self.sense_crew()
-            self.update_prob_matrix_after_move(beep_detected)
+            beep_detected, alien_sensed = self.sense_environment()
+            self.update_prob_matrices(beep_detected, alien_sensed)
             self.move_based_on_prob()
-            self.move_alien_randomly()
+            
             print(f"Step {steps}:")
             self.print_grid()
 
             if self.bot_pos == self.crew_pos:
                 print(f"Bot 1 rescued the crew member in {steps} steps!")
                 break
-            elif self.bot_pos == self.alien_pos:
+            
+            self.move_alien_randomly()
+            
+            if self.bot_pos == self.alien_pos:
                 print(f"Bot 1 was destroyed by the alien after {steps + 1} steps.")
                 break
             
             steps += 1
-
-    def update_prob_matrix_after_move(self, beep_detected):
-        new_prob_matrix = np.zeros_like(self.prob_matrix)
-        
-        for x in range(self.dimension):
-            for y in range(self.dimension):
-                distance = self.distance((x, y), self.bot_pos)
-                prob_of_beep = np.exp(-self.alpha * (distance - 1))
-                if beep_detected:
-                    new_prob_matrix[x, y] = self.prob_matrix[x, y] * prob_of_beep
-                else:
-                    new_prob_matrix[x, y] = self.prob_matrix[x, y] * (1 - prob_of_beep)
-        
-        total_prob = np.sum(new_prob_matrix)
-        if total_prob > 0:
-            self.prob_matrix = new_prob_matrix / total_prob
-        else:
-            self.prob_matrix = np.full_like(self.prob_matrix, 1.0 / (self.dimension**2))
-
-    def move_based_on_prob(self):
-        best_moves = []
-        best_utility = float('-inf')
-        
-        # Consider all possible moves
-        for dx, dy in [(0, -1), (-1, 0), (1, 0), (0, 1)]:
-            nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
-            if 0 <= nx < self.dimension and 0 <= ny < self.dimension:
-                utility = self.calculate_move_utility((nx, ny))
-                
-                # Accumulate best moves and choose randomly among them to break ties
-                if utility > best_utility:
-                    best_utility = utility
-                    best_moves = [(nx, ny)]
-                elif utility == best_utility:
-                    best_moves.append((nx, ny))
-        
-        if best_moves:
-            self.bot_pos = random.choice(best_moves)  # Randomly choose among the best moves
-            self.update_grid()
-            
-    def calculate_move_utility(self, pos):
-        # Utility calculation considering both crew probability and alien avoidance
-        crew_prob = self.prob_matrix[pos]
-        alien_avoidance = 1.0 - self.alien_prob_matrix[pos]  # Simple avoidance strategy
-        
-        utility = crew_prob + alien_avoidance  # Adjust formula as needed for your scenario
-        return utility
 
 if __name__ == "__main__":
     bot = Bot1(dimension=35, alpha=0.01, k=1)

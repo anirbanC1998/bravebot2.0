@@ -1,5 +1,5 @@
-import numpy as np
 import random
+import numpy as np
 
 class SpaceRoombaEnvironment:
     
@@ -81,22 +81,23 @@ class SpaceRoombaEnvironment:
                     temp_matrix[x, y] = 1.0 / 5  # Adjacent cells + current cell
         self.alien_prob_matrix = temp_matrix
 
+
 class Bot2(SpaceRoombaEnvironment):
     def run(self):
         steps = 0
         while True:
             beep_detected = self.sense_crew()
             self.update_prob_matrix_after_move(beep_detected)
-            self.decide_move_based_on_utility()
+            self.move_based_on_prob()
             self.move_alien_randomly()
             print(f"Step {steps}:")
             self.print_grid()
 
             if self.bot_pos == self.crew_pos:
-                print(f"Bot 2 rescued the crew member in {steps} steps!")
+                print(f"Bot 1 rescued the crew member in {steps} steps!")
                 break
             elif self.bot_pos == self.alien_pos:
-                print(f"Bot 2 was destroyed by the alien after {steps + 1} steps.")
+                print(f"Bot 1 was destroyed by the alien after {steps + 1} steps.")
                 break
             
             steps += 1
@@ -119,29 +120,36 @@ class Bot2(SpaceRoombaEnvironment):
         else:
             self.prob_matrix = np.full_like(self.prob_matrix, 1.0 / (self.dimension**2))
 
-    def decide_move_based_on_utility(self):
-        best_move = None
+    def move_based_on_prob(self):
+        best_moves = []
         best_utility = float('-inf')
         
-        for dx, dy in [(0, -1), (-1, 0), (1, 0), (0, 1)]: #Took out staying in place
-            next_pos = (self.bot_pos[0] + dx, self.bot_pos[1] + dy)
-            if 0 <= next_pos[0] < self.dimension and 0 <= next_pos[1] < self.dimension:
-                utility = self.calculate_utility(next_pos)
+        # Consider all possible moves
+        for dx, dy in [(0, -1), (-1, 0), (1, 0), (0, 1)]:
+            nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
+            if 0 <= nx < self.dimension and 0 <= ny < self.dimension:
+                utility = self.calculate_move_utility((nx, ny))
+                
+                # Accumulate best moves and choose randomly among them to break ties
                 if utility > best_utility:
                     best_utility = utility
-                    best_move = next_pos
-
-        if best_move:
-            self.bot_pos = best_move
+                    best_moves = [(nx, ny)]
+                elif utility == best_utility:
+                    best_moves.append((nx, ny))
+        
+        if best_moves:
+            self.bot_pos = random.choice(best_moves)  # Randomly choose among the best moves
             self.update_grid()
-
-    def calculate_utility(self, pos):
+            
+    def calculate_move_utility(self, pos):
+        # Utility calculation considering both crew probability and alien avoidance
         crew_prob = self.prob_matrix[pos]
-        alien_prob = self.alien_prob_matrix[pos]
-        # Adjust the utility calculation as needed based on your scenario
-        utility = crew_prob * 100 - alien_prob * 200  # Example weighting
+        alien_avoidance = 1.0 - self.alien_prob_matrix[pos]  # Simple avoidance strategy
+        
+        utility = crew_prob + alien_avoidance  # Adjust formula as needed for your scenario
         return utility
 
 if __name__ == "__main__":
     bot = Bot2(dimension=35, alpha=0.01, k=1)
     bot.run()
+
