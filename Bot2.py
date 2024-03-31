@@ -127,8 +127,20 @@ class Bot2:
             print()
         print("\n")
     
-    def sense_environment(self):
-        beep_detected = (random.random() <= np.exp(-self.alpha * (self.distance(self.bot_pos, self.crew_pos) - 1)))
+    def sense_environment(self):      
+        d = self.distance(self.bot_pos, self.crew_pos)
+        beep_detected = False
+        
+        for x in range(self.dimension):
+            for y in range(self.dimension):
+                # check if crew member actually exists in cells d-Manhattan distance away
+                if(self.distance(self.bot_pos, (x,y)) == d):
+                    if(self.grid[x,y] == 'C'): #Check if the cell contains the crew
+                        beep_detected = True
+                        break
+        if beep_detected: #Assess reliability on uniform random. Now we know that C exists on our path.
+            beep_detected = (random.random() <= np.exp(-self.alpha * (self.distance(self.bot_pos, self.crew_pos) - 1)))
+        #Check if Alien is within the radius
         alien_sensed = self.distance(self.bot_pos, self.alien_pos) <= (2 * self.k + 1)
         return beep_detected, alien_sensed
     
@@ -213,7 +225,7 @@ class Bot2:
         # Consider all possible moves
         for dx, dy in [(0, -1), (-1, 0), (1, 0), (0, 1)]:
             nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
-            if 0 <= nx < self.dimension and 0 <= ny < self.dimension:
+            if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[nx,ny] != 'A':
                 utility = self.calculate_move_utility((nx, ny))
                 
                 # Accumulate best moves and choose randomly among them to break ties
@@ -242,7 +254,6 @@ class Bot2:
             self.update_prob_matrices(beep_detected, alien_sensed)
             self.move_based_on_prob()
             self.move_alien_randomly()
-            """
             print(f"Crew Distance: {self.distance(self.bot_pos, self.crew_pos)}")
             print(f"Alien Distance: {self.distance(self.bot_pos, self.alien_pos)}")
             print(f"Beep Detected: {beep_detected}, Alien Sensed: {alien_sensed}")
@@ -252,16 +263,16 @@ class Bot2:
             print(f"Step: {steps}.")
             self.print_grid()
             
-            """       
+                 
             #self.print_crew_prob_matrix()
 
             if self.bot_pos == self.crew_pos:
-                print(f"Bot 1 rescued the crew member in {steps} steps!")
+                print(f"Bot 2 rescued the crew member in {steps} steps!")
                 return(True, steps)
             
             
             if self.bot_pos == self.alien_pos:
-                print(f"Bot 1 was destroyed by the alien after {steps + 1} steps.")
+                print(f"Bot 2 was destroyed by the alien after {steps + 1} steps.")
                 return(False, steps)
             
             steps += 1

@@ -3,7 +3,7 @@ import numpy as np
 
 class Bot1:
     
-    def __init__(self, dimension=35, alpha=0.01, k=5):
+    def __init__(self, dimension=10, alpha=0.01, k=5):
         self.dimension = dimension
         self.alpha = alpha
         self.k = k
@@ -127,8 +127,20 @@ class Bot1:
             print()
         print("\n")
     
-    def sense_environment(self):
-        beep_detected = (random.random() <= np.exp(-self.alpha * (self.distance(self.bot_pos, self.crew_pos) - 1)))
+    def sense_environment(self):   
+        d = self.distance(self.bot_pos, self.crew_pos)
+        beep_detected = False
+        
+        for x in range(self.dimension):
+            for y in range(self.dimension):
+                # check if crew member actually exists in cells d-Manhattan distance away
+                if(self.distance(self.bot_pos, (x,y)) == d):
+                    if(self.grid[x,y] == 'C'): #Check if the cell contains the crew
+                        beep_detected = True
+                        break
+        if beep_detected: #Assess reliability on uniform random. Now we know that C exists on our path.
+            beep_detected = (random.random() <= np.exp(-self.alpha * (self.distance(self.bot_pos, self.crew_pos) - 1)))
+        #Check if Alien is within the radius
         alien_sensed = self.distance(self.bot_pos, self.alien_pos) <= (2 * self.k + 1)
         return beep_detected, alien_sensed
     
@@ -142,15 +154,13 @@ class Bot1:
                     continue
 
                 distance = self.distance((x, y), self.bot_pos)
-                likelihood_of_beep = np.exp(-self.alpha * (distance - 1))
-                #print(likelihood_of_beep)
                 
                 if beep_detected:
-                    # Update based on the likelihood of detecting a beep given the crew is at (x, y)
-                    self.crew_prob_matrix[x, y] *= likelihood_of_beep
-                else:
-                    # Update based on the likelihood of not detecting a beep given the crew is at (x, y)
-                    self.crew_prob_matrix[x, y] *= (1 - likelihood_of_beep)
+                    if distance < self.distance(self.bot_pos, self.crew_pos):
+                        # Update based on the likelihood of detecting a beep given the crew is at (x, y)
+                        self.crew_prob_matrix[x, y] = 1
+                    else:
+                        self.crew_prob_matrix[x, y] = 0.5
 
         # Normalize the crew probability matrix to ensure probabilities sum to 1
         total_crew_prob = np.sum(self.crew_prob_matrix)
@@ -168,10 +178,10 @@ class Bot1:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        self.alien_prob_matrix[x, y] *= 2  # Increase likelihood
+                        self.alien_prob_matrix[x, y] = 1  # Increase likelihood
                     else:
                         # Decrease likelihood for positions outside of sensing range
-                        self.alien_prob_matrix[x, y] *= 0.5
+                        self.alien_prob_matrix[x, y] = 0
 
             # Normalize the alien probability matrix to ensure probabilities sum to 1
             total_alien_prob = np.sum(self.alien_prob_matrix)
@@ -187,9 +197,15 @@ class Bot1:
         for dx, dy in directions:
             nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
             # Ensure the move is within bounds and not into a wall.
-            if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] == '.':
+            if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[nx,ny] != 'A':
+                if(self.grid[nx, ny] == 'C'):
+                    best_move = (dx, dy)
+                    best_crew_score = 1.0
+                    break
                 # Calculate score based on crew probability minus some factor of alien probability to avoid aliens
-                crew_score = (self.crew_prob_matrix[nx, ny]*2) - self.alien_prob_matrix[nx, ny]
+                print(f"Crew Prob: {self.crew_prob_matrix[nx, ny]}")
+                print(f"Alien Prob: {self.alien_prob_matrix[nx, ny]}")
+                crew_score = self.crew_prob_matrix[nx, ny] - self.alien_prob_matrix[nx, ny]
 
                 # Choose the move with the highest score that maximizes crew probability and minimizes alien risk
                 if crew_score > best_crew_score:
@@ -198,7 +214,7 @@ class Bot1:
 
         
         # Execute the best move if found
-        if best_crew_score > 0.0 or best_crew_score > float('-inf'):
+        if best_move and best_crew_score > float('-inf'):
             self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
         else:
             # If no move is significantly better, the bot could either stay in place or pick a random safe move.
@@ -212,7 +228,7 @@ class Bot1:
         self.update_grid()
 
     def is_move_safe(self, x, y):
-        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] == '.' and self.alien_prob_matrix[x, y] < 0.5
+        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A'
 
     # Ensure the move_alien_randomly and other relevant methods also respect walls.
 
@@ -250,7 +266,6 @@ class Bot1:
             self.update_prob_matrices(beep_detected, alien_sensed)
             self.move_based_on_prob()
             self.move_alien_randomly()
-            """
             print(f"Crew Distance: {self.distance(self.bot_pos, self.crew_pos)}")
             print(f"Alien Distance: {self.distance(self.bot_pos, self.alien_pos)}")
             print(f"Beep Detected: {beep_detected}, Alien Sensed: {alien_sensed}")
@@ -259,7 +274,7 @@ class Bot1:
             print(f"Position Alien: {self.alien_pos}")
             print(f"Step: {steps}.")
             self.print_grid()
-            """
+            
             #self.print_crew_prob_matrix()
 
             if self.bot_pos == self.crew_pos:
@@ -277,7 +292,7 @@ class Bot1:
     
 
 if __name__ == "__main__":
-    bot = Bot1(dimension=35, alpha=0.05, k=1)
+    bot = Bot1(dimension=10, alpha=0.05, k=1)
     result, steps = bot.run()
     print(result, steps)
 
