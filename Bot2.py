@@ -20,6 +20,7 @@ class Bot2:
         
         self.crew_prob_matrix = np.zeros((dimension, dimension))
         self.alien_prob_matrix = np.zeros((dimension, dimension))
+        self.visited_matrix = np.zeros((self.dimension, self.dimension))
         
         
         self.update_grid()
@@ -127,7 +128,7 @@ class Bot2:
             print()
         print("\n")
     
-    def sense_environment(self):      
+    def sense_environment(self):   
         d = self.distance(self.bot_pos, self.crew_pos)
         beep_detected = False
         
@@ -138,6 +139,10 @@ class Bot2:
                     if(self.grid[x,y] == 'C'): #Check if the cell contains the crew
                         beep_detected = True
                         break
+            else: #Make sure the outer loop isn't broken if the inner loop is
+                continue
+            #inner loop broken, break the outer
+            break
         if beep_detected: #Assess reliability on uniform random. Now we know that C exists on our path.
             beep_detected = (random.random() <= np.exp(-self.alpha * (self.distance(self.bot_pos, self.crew_pos) - 1)))
         #Check if Alien is within the radius
@@ -172,6 +177,11 @@ class Bot2:
 
     
     def update_prob_matrices(self, beep_detected, alien_sensed):
+        # Temporary matrices to hold the updated probabilities
+        new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
+        new_alien_prob_matrix = np.zeros_like(self.alien_prob_matrix)
+        
+        
         # Update crew probability matrix using Bayesian updating
         for x in range(self.dimension):
             for y in range(self.dimension):
@@ -180,21 +190,28 @@ class Bot2:
                     self.crew_prob_matrix[x, y] = 0
                     continue
 
+                exploration_bonus = 0.1  # Value to incentivize exploration; adjust as needed
                 distance = self.distance((x, y), self.bot_pos)
-                likelihood_of_beep = np.exp(-self.alpha * (distance - 1))
-                #print(likelihood_of_beep)
+                beep_probability = np.exp(-self.alpha * (distance - 1))
                 
                 if beep_detected:
-                    # Update based on the likelihood of detecting a beep given the crew is at (x, y)
-                    self.crew_prob_matrix[x, y] *= likelihood_of_beep
+                    if distance < self.distance(self.bot_pos, self.crew_pos):
+                        # Update based on the likelihood of detecting a beep given the crew is at (x, y)
+                        new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * beep_probability
+                    else:
+                        new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * (1 - beep_probability)
+                
+                # Apply exploration incentive for unvisited cells
+                if self.visited_matrix[x, y] == 0:
+                    new_crew_prob_matrix[x, y] *= (1 + exploration_bonus)
                 else:
-                    # Update based on the likelihood of not detecting a beep given the crew is at (x, y)
-                    self.crew_prob_matrix[x, y] *= (1 - likelihood_of_beep)
+                    # Penalize revisiting cells to discourage backtracking
+                    new_crew_prob_matrix[x, y] *= 0.5  # Penalize; adjust penalty as appropriate
 
         # Normalize the crew probability matrix to ensure probabilities sum to 1
-        total_crew_prob = np.sum(self.crew_prob_matrix)
+        total_crew_prob = np.sum(new_crew_prob_matrix)
         if total_crew_prob > 0:
-            self.crew_prob_matrix /= total_crew_prob
+            self.crew_prob_matrix = new_crew_prob_matrix / total_crew_prob
 
         # Update alien probability matrix using Bayesian updating
         if alien_sensed:
@@ -207,45 +224,63 @@ class Bot2:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        self.alien_prob_matrix[x, y] *= 2  # Increase likelihood
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 1.1 
                     else:
                         # Decrease likelihood for positions outside of sensing range
-                        self.alien_prob_matrix[x, y] *= 0.5
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.1
 
             # Normalize the alien probability matrix to ensure probabilities sum to 1
-            total_alien_prob = np.sum(self.alien_prob_matrix)
+            total_alien_prob = np.sum(new_alien_prob_matrix)
             if total_alien_prob > 0:
-                self.alien_prob_matrix /= total_alien_prob
+                self.alien_prob_matrix = new_alien_prob_matrix / total_alien_prob
 
 
     def move_based_on_prob(self):
-        best_moves = []
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # Up, Right, Down, Left
+        best_move = None
         best_utility = float('-inf')
-        
-        # Consider all possible moves
-        for dx, dy in [(0, -1), (-1, 0), (1, 0), (0, 1)]:
+
+        for dx, dy in directions:
             nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
-            if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[nx,ny] != 'A':
-                utility = self.calculate_move_utility((nx, ny))
-                
-                # Accumulate best moves and choose randomly among them to break ties
-                if utility > best_utility:
-                    best_utility = utility
-                    best_moves = [(nx, ny)]
-                elif utility == best_utility:
-                    best_moves.append((nx, ny))
-        
-        if best_moves:
-            self.bot_pos = random.choice(best_moves)  # Randomly choose among the best moves
-            self.update_grid()
             
-    def calculate_move_utility(self, pos):
-        # Utility calculation considering both crew probability and alien avoidance
-        crew_prob = self.crew_prob_matrix[pos]
-        alien_avoidance = 1.0 - self.alien_prob_matrix[pos]  # Simple avoidance strategy
+            # Ensure the move is within bounds and not into a wall.
+            if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[nx,ny] != 'A':
+                current_utility = self.calculate_move_utility(( nx, ny))
+                if(self.grid[nx, ny] == 'C'):
+                    best_move = (dx, dy)
+                    break
+                
+                if current_utility > best_utility:
+                    best_utility = current_utility
+                    best_move = (dx, dy)
+
         
-        utility = crew_prob + alien_avoidance  # Adjust formula as needed for your scenario
-        return utility
+        # Execute the best move if found
+        if best_move and best_utility > float('-inf'):
+            self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
+            self.visited_matrix[self.bot_pos] = 1  # Mark as visited
+            self.update_grid()  # Update the grid to reflect the new bot position
+        else:
+            print("Staying in place")
+
+    def calculate_move_utility(self, pos):
+        if self.grid[pos] == '#':  # Ignore walls
+            return float('-inf')  # Assign very low utility
+        
+        crew_prob = self.crew_prob_matrix[pos]
+        alien_risk = self.alien_prob_matrix[pos]
+        visited_penalty = 0 if self.visited_matrix[pos] == 0 else -0.5  # Penalize visited cells
+        exploration_bonus = 0.1 if self.visited_matrix[pos] == 0 else 0  # Encourage exploration
+        
+        # Combine the components to calculate utility
+        utility = crew_prob - (alien_risk * 2) + exploration_bonus + visited_penalty
+        
+        # Proximity bonus: Calculate the distance to the highest probability crew location and adjust utility
+        highest_prob_pos = np.unravel_index(np.argmax(self.crew_prob_matrix), self.crew_prob_matrix.shape)
+        distance_to_highest_prob = self.distance(pos, highest_prob_pos)
+        proximity_bonus = 1 / (distance_to_highest_prob + 1)  # Avoid division by zero
+        
+        return utility + proximity_bonus
     
     def run(self):
         steps = 0
