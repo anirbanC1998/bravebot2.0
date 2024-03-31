@@ -133,57 +133,86 @@ class Bot1:
         return beep_detected, alien_sensed
     
     def update_prob_matrices(self, beep_detected, alien_sensed):
-        # Update the crew probability matrix based on the beep detection
+        # Update crew probability matrix using Bayesian updating
         for x in range(self.dimension):
             for y in range(self.dimension):
-                if self.grid[x, y] == '#':  # Ignore walls
+                # Skip walls
+                if self.grid[x, y] == '#':
+                    self.crew_prob_matrix[x, y] = 0
                     continue
+
                 distance = self.distance((x, y), self.bot_pos)
-                prob_of_beep = np.exp(-self.alpha * (distance - 1))
+                likelihood_of_beep = np.exp(-self.alpha * (distance - 1))
+                #print(likelihood_of_beep)
+                
                 if beep_detected:
-                    self.crew_prob_matrix[x, y] *= prob_of_beep
+                    # Update based on the likelihood of detecting a beep given the crew is at (x, y)
+                    self.crew_prob_matrix[x, y] *= likelihood_of_beep
                 else:
-                    # If no beep is detected, adjust probability inversely
-                    self.crew_prob_matrix[x, y] *= (1 - prob_of_beep)
-        
-        # Normalize the crew probability matrix
-        self.crew_prob_matrix /= np.sum(self.crew_prob_matrix)
+                    # Update based on the likelihood of not detecting a beep given the crew is at (x, y)
+                    self.crew_prob_matrix[x, y] *= (1 - likelihood_of_beep)
 
-        # Update the alien probability matrix based on alien sensing
-        for x in range(self.dimension):
-            for y in range(self.dimension):
-                if self.grid[x, y] == '#':  # Ignore walls
-                    continue
-                if alien_sensed and self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
-                    self.alien_prob_matrix[x, y] *= 1.1  # Increase probability if within sensing range
-                else:
-                    self.alien_prob_matrix[x, y] *= 0.9  # Decrease otherwise
+        # Normalize the crew probability matrix to ensure probabilities sum to 1
+        total_crew_prob = np.sum(self.crew_prob_matrix)
+        if total_crew_prob > 0:
+            self.crew_prob_matrix /= total_crew_prob
 
-        # Normalize the alien probability matrix
-        self.alien_prob_matrix /= np.sum(self.alien_prob_matrix)
+        # Update alien probability matrix using Bayesian updating
+        if alien_sensed:
+            for x in range(self.dimension):
+                for y in range(self.dimension):
+                    # Skip walls
+                    if self.grid[x, y] == '#':
+                        self.alien_prob_matrix[x, y] = 0
+                        continue
+
+                    if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
+                        # If alien is sensed and within range, increase probability
+                        self.alien_prob_matrix[x, y] *= 2  # Increase likelihood
+                    else:
+                        # Decrease likelihood for positions outside of sensing range
+                        self.alien_prob_matrix[x, y] *= 0.5
+
+            # Normalize the alien probability matrix to ensure probabilities sum to 1
+            total_alien_prob = np.sum(self.alien_prob_matrix)
+            if total_alien_prob > 0:
+                self.alien_prob_matrix /= total_alien_prob
 
 
     def move_based_on_prob(self):
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # Up, Right, Down, Left
         best_move = None
-        best_score = float('-inf')
+        best_crew_score = float('-inf')  # Initialize with lowest possible score for crew
 
         for dx, dy in directions:
             nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
+            # Ensure the move is within bounds and not into a wall.
             if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] == '.':
-                # Consider both crew probability and alien probability
-                score = self.crew_prob_matrix[nx, ny] - self.alien_prob_matrix[nx, ny]
-                if score > best_score:
-                    best_score = score
+                # Calculate score based on crew probability minus some factor of alien probability to avoid aliens
+                crew_score = (self.crew_prob_matrix[nx, ny]*2) - self.alien_prob_matrix[nx, ny]
+
+                # Choose the move with the highest score that maximizes crew probability and minimizes alien risk
+                if crew_score > best_crew_score:
+                    best_crew_score = crew_score
                     best_move = (dx, dy)
 
-        # Make the move
-        if best_move:
+        
+        # Execute the best move if found
+        if best_crew_score > 0.0 or best_crew_score > float('-inf'):
             self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
-            self.update_grid()  # Remember to update the grid with the new bot position
-
         else:
-            print("No preferable move identified. Bot is staying in place to reassess.")
+            # If no move is significantly better, the bot could either stay in place or pick a random safe move.
+            safe_moves = [move for move in directions if self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
+            if safe_moves:
+                chosen_move = random.choice(safe_moves)
+                self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
+            else:
+                print("Staying in place due to no safe moves.")
+
+        self.update_grid()
+
+    def is_move_safe(self, x, y):
+        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] == '.' and self.alien_prob_matrix[x, y] < 0.5
 
     # Ensure the move_alien_randomly and other relevant methods also respect walls.
 
@@ -216,32 +245,39 @@ class Bot1:
         
     def run(self):
         steps = 0
-        while True:
+        while steps <= 10000:
             beep_detected, alien_sensed = self.sense_environment()
             self.update_prob_matrices(beep_detected, alien_sensed)
             self.move_based_on_prob()
             self.move_alien_randomly()
+            """
+            print(f"Crew Distance: {self.distance(self.bot_pos, self.crew_pos)}")
+            print(f"Alien Distance: {self.distance(self.bot_pos, self.alien_pos)}")
+            print(f"Beep Detected: {beep_detected}, Alien Sensed: {alien_sensed}")
             print(f"Position Bot: {self.bot_pos}")
             print(f"Position Crew: {self.crew_pos}")
             print(f"Position Alien: {self.alien_pos}")
             print(f"Step: {steps}.")
             self.print_grid()
+            """
             #self.print_crew_prob_matrix()
 
             if self.bot_pos == self.crew_pos:
                 print(f"Bot 1 rescued the crew member in {steps} steps!")
-                break
-            
+                return(True, steps)
             
             if self.bot_pos == self.alien_pos:
                 print(f"Bot 1 was destroyed by the alien after {steps + 1} steps.")
-                break
+                return(False, steps)
             
             steps += 1
+            
+        return(False, steps)
     
     
 
 if __name__ == "__main__":
-    bot = Bot1(dimension=35, alpha=0.01, k=1)
-    bot.run()
+    bot = Bot1(dimension=35, alpha=0.05, k=1)
+    result, steps = bot.run()
+    print(result, steps)
 

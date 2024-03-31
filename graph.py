@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Assume Bot1 and Bot2 are implemented in bot1.py and bot2.py respectively
-from bot1 import Bot1
-from bot2 import Bot2
 
-def simulate_bot1(alpha_range=np.linspace(0.001, 0.01, 10), num_trials = 100):
+from Bot1 import Bot1
+from Bot2 import Bot2
+
+def simulate_bot1(alpha_range=np.linspace(0.001, 0.01, 10), num_trials = 50):
     success_rates = []
     average_moves = []
     for a in alpha_range:
@@ -13,7 +13,7 @@ def simulate_bot1(alpha_range=np.linspace(0.001, 0.01, 10), num_trials = 100):
         total_moves = 0
         for _ in range(num_trials):
             bot = Bot1(dimension=35, alpha=a, k=1)
-            result = bot.run()  # Assume run() returns a tuple (success: bool, moves: int)
+            result = bot.run()  
             if result[0]:
                 successes += 1
             total_moves += result[1]
@@ -21,7 +21,7 @@ def simulate_bot1(alpha_range=np.linspace(0.001, 0.01, 10), num_trials = 100):
         average_moves.append(total_moves / num_trials)
     return alpha_range, success_rates, average_moves
 
-def simulate_bot2(alpha_range=np.linspace(0.001, 0.01, 10), num_trials = 100):
+def simulate_bot2(alpha_range=np.linspace(0.001, 0.01, 10), num_trials = 50):
     success_rates = []
     average_moves = []
     for a in alpha_range:
@@ -29,7 +29,7 @@ def simulate_bot2(alpha_range=np.linspace(0.001, 0.01, 10), num_trials = 100):
         total_moves = 0
         for _ in range(num_trials):
             bot = Bot2(dimension=35, alpha=a, k=1)
-            result = bot.run()  # Assume run() returns a tuple (success: bool, moves: int)
+            result = bot.run() 
             if result[0]:
                 successes += 1
             total_moves += result[1]
