@@ -18,12 +18,14 @@ class Bot1:
         self.crew_pos = self.place_random(exclude=self.bot_pos)
         self.alien_pos = self.place_random(exclude=[self.bot_pos, self.crew_pos], outside_k=True)
         
-        self.crew_prob_matrix = np.full((dimension, dimension), 1 / (dimension**2 - 1))
-        self.alien_prob_matrix = np.full((dimension, dimension), 1 / (dimension**2 - (2*k + 1)**2))
+        self.crew_prob_matrix = np.zeros((dimension, dimension))
+        self.alien_prob_matrix = np.zeros((dimension, dimension))
         
         
         self.update_grid()
-        self.update_alien_prob_matrix_initial()
+       
+       #Intializes both alien and crew prob matrices
+        self.update_prob_matrices_initial()
 
     def initialize_ship_layout(self):
         # Open a random cell
@@ -104,6 +106,16 @@ class Bot1:
                 print(self.grid[x, y], end=" ")
             print()
     print("\n")
+    
+    def update_prob_matrices_initial(self):
+        for x in range(self.dimension):
+            for y in range(self.dimension):
+                if self.grid[x, y] == '.':
+                    if self.distance((x, y), self.bot_pos) > 2 * self.k + 1:
+                        self.alien_prob_matrix[x, y] = 1 / (self.dimension**2 - (2*self.k + 1)**2)
+                    self.crew_prob_matrix[x, y] = 1 / (self.dimension**2 - 1)
+        self.crew_prob_matrix /= self.crew_prob_matrix.sum()
+        self.alien_prob_matrix /= self.alien_prob_matrix.sum()
         
     
     def print_crew_prob_matrix(self):
@@ -121,41 +133,34 @@ class Bot1:
         return beep_detected, alien_sensed
     
     def update_prob_matrices(self, beep_detected, alien_sensed):
-        
-        # Update probabilities based on beep detection
+        # Update the crew probability matrix based on the beep detection
         for x in range(self.dimension):
             for y in range(self.dimension):
-                distance = self.distance((x, y), self.bot_pos)
-
-                    # Adjust the probability based on the distance and whether a beep was detected
-                if beep_detected:
-                    # The closer the bot is to the crew, the higher the probability should be when a beep is detected
-                    self.crew_prob_matrix[x, y] *= (np.exp(-self.alpha * (distance - 1)))
-                else:
-                    self.crew_prob_matrix[x, y] *= (1 - (np.exp(-self.alpha * (distance - 1))))
+                if self.grid[x, y] == '#':  # Ignore walls
                     continue
-                
-         # Normalize the updated crew probability matrix to ensure total probabilities sum to 1
-        prob_sum = np.sum(self.crew_prob_matrix)
-        if prob_sum > 0:
-            self.crew_prob_matrix /= prob_sum
-            # Handle the case where total probability is zero to avoid division by zero
-            #self.crew_prob_matrix = np.full((self.dimension, self.dimension), 1/(self.dimension**2))
+                distance = self.distance((x, y), self.bot_pos)
+                prob_of_beep = np.exp(-self.alpha * (distance - 1))
+                if beep_detected:
+                    self.crew_prob_matrix[x, y] *= prob_of_beep
+                else:
+                    # If no beep is detected, adjust probability inversely
+                    self.crew_prob_matrix[x, y] *= (1 - prob_of_beep)
+        
+        # Normalize the crew probability matrix
+        self.crew_prob_matrix /= np.sum(self.crew_prob_matrix)
 
-        # Alien probability update is less critical for Bot1's immediate behavior but should reflect risk areas
-        if alien_sensed:
-            for x in range(self.dimension):
-                for y in range(self.dimension):
-                    if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
-                        # Increase probability for cells within sensing range
-                        self.alien_prob_matrix[x, y] = min(self.alien_prob_matrix[x, y] * 2, 1)
-                    else:
-                        continue
+        # Update the alien probability matrix based on alien sensing
+        for x in range(self.dimension):
+            for y in range(self.dimension):
+                if self.grid[x, y] == '#':  # Ignore walls
+                    continue
+                if alien_sensed and self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
+                    self.alien_prob_matrix[x, y] *= 1.1  # Increase probability if within sensing range
+                else:
+                    self.alien_prob_matrix[x, y] *= 0.9  # Decrease otherwise
 
-        # Since alien probabilities are adjusted in place, normalization may not be strictly necessary but can be done for consistency
-        alien_prob_sum = np.sum(self.alien_prob_matrix)
-        if alien_prob_sum > 0:
-            self.alien_prob_matrix /= alien_prob_sum
+        # Normalize the alien probability matrix
+        self.alien_prob_matrix /= np.sum(self.alien_prob_matrix)
 
 
     def move_based_on_prob(self):
@@ -166,43 +171,48 @@ class Bot1:
         for dx, dy in directions:
             nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
             if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] == '.':
-                score = self.crew_prob_matrix[nx, ny]
+                # Consider both crew probability and alien probability
+                score = self.crew_prob_matrix[nx, ny] - self.alien_prob_matrix[nx, ny]
                 if score > best_score:
                     best_score = score
                     best_move = (dx, dy)
 
+        # Make the move
         if best_move:
             self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
+            self.update_grid()  # Remember to update the grid with the new bot position
+
         else:
             print("No preferable move identified. Bot is staying in place to reassess.")
-
-        self.update_grid()
 
     # Ensure the move_alien_randomly and other relevant methods also respect walls.
 
     def move_alien_randomly(self):
-        directions = [(0, -1), (-1, 0), (1, 0), (0, 1)] 
+        directions = [(0, -1), (-1, 0), (1, 0), (0, 1)]  # Up, Left, Right, Down
         random.shuffle(directions)
         for dx, dy in directions:
             new_pos = (self.alien_pos[0] + dx, self.alien_pos[1] + dy)
-            if 0 <= new_pos[0] < self.dimension and 0 <= new_pos[1] < self.dimension and self.grid[dx, dy] != '#':
+            # Ensure new position is within bounds and not a wall
+            if 0 <= new_pos[0] < self.dimension and 0 <= new_pos[1] < self.dimension and self.grid[new_pos] != '#':
                 self.alien_pos = new_pos
                 break
+        self.update_grid()  # Update grid to reflect new alien position
         self.update_alien_prob_matrix_after_move()
-        
-    def update_alien_prob_matrix_initial(self):
-        # Initially mark only the alien's starting position in the probability matrix
-        self.alien_prob_matrix = np.zeros((self.dimension, self.dimension))
-        self.alien_prob_matrix[self.alien_pos] = 1.0
 
     def update_alien_prob_matrix_after_move(self):
-        # Spread the probability from the alien's current position to adjacent cells
-        temp_matrix = np.zeros((self.dimension, self.dimension))
+        # Initialize a new probability matrix
+        new_prob_matrix = np.zeros((self.dimension, self.dimension))
         for x in range(self.dimension):
             for y in range(self.dimension):
-                if self.distance((x, y), self.alien_pos) <= 1:
-                    temp_matrix[x, y] = 1.0 / 5  # Adjacent cells + current cell
-        self.alien_prob_matrix = temp_matrix
+                if self.grid[x, y] == '#':  # Ignore walls
+                    continue
+                distance = self.distance((x, y), self.alien_pos)
+                if distance <= 1:
+                    # Assign equal probability to adjacent cells and the alien's current cell
+                    new_prob_matrix[x, y] = 1.0 / (1 + len([d for d in [(0, -1), (-1, 0), (1, 0), (0, 1)] if 0 <= x + d[0] < self.dimension and 0 <= y + d[1] < self.dimension and self.grid[x + d[0], y + d[1]] != '#']))
+
+        self.alien_prob_matrix = new_prob_matrix / np.sum(new_prob_matrix)  # Normalize the matrix
+
         
     def run(self):
         steps = 0
