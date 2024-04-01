@@ -215,9 +215,9 @@ class Bot5:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        new_alien_prob_matrix[x, y] = 1
+                        new_alien_prob_matrix[x, y] *= 1.1
                     else:
-                        # Decrease likelihood for positions outside of sensing range
+                        # Alien is not here
                         new_alien_prob_matrix[x, y] = 0
 
             # Normalize the alien probability matrix to ensure probabilities sum to 1
@@ -279,24 +279,6 @@ class Bot5:
                 self.alien_pos = new_pos
                 break
         self.update_grid()  # Update grid to reflect new alien position
-        self.update_alien_prob_matrix_after_move()
-
-    def update_alien_prob_matrix_after_move(self):
-        # Initialize a new probability matrix
-        new_prob_matrix = np.zeros((self.dimension, self.dimension))
-        for x in range(self.dimension):
-            for y in range(self.dimension):
-                if self.grid[x, y] == '#':  # Ignore walls
-                    continue
-                distance = self.distance((x, y), self.alien_pos)
-                if distance <= 1:
-                    # Assign equal probability to adjacent cells and the alien's current cell
-                    new_prob_matrix[x, y] = 1.0 / (1 + len([d for d in [(0, -1), (-1, 0), (1, 0), (0, 1)] if
-                                                            0 <= x + d[0] < self.dimension and 0 <= y + d[
-                                                                1] < self.dimension and self.grid[
-                                                                x + d[0], y + d[1]] != '#']))
-
-        self.alien_prob_matrix = new_prob_matrix / np.sum(new_prob_matrix)  # Normalize the matrix
 
     def calculate_move_utility(self, pos):
         if self.grid[pos] == '#':  # Ignore walls
