@@ -269,7 +269,7 @@ class Bot2:
         
         crew_prob = self.crew_prob_matrix[pos]
         alien_risk = self.alien_prob_matrix[pos]
-        visited_penalty = 0 if self.visited_matrix[pos] == 0 else -0.5  # Penalize visited cells
+        visited_penalty = 0 if self.visited_matrix[pos] == 0 else -1  # Penalize visited cells
         exploration_bonus = 0.1 if self.visited_matrix[pos] == 0 else 0  # Encourage exploration
         
         # Combine the components to calculate utility
