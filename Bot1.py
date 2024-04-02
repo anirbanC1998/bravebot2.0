@@ -177,10 +177,9 @@ class Bot1:
                         new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * (1 - beep_probability)
 
                 # Apply exploration incentive for unvisited cells, crew member is never there
-                if(self.visited_matrix[x, y] == 0):
+                if self.visited_matrix[x, y] == 0:
                     new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 10
-                else:
-                    new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 0.1
+                new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] * 0.1 # adjust penalty for not going back
                     
         # Normalize the crew probability matrix to ensure probabilities sum to 1
         total_crew_prob = np.sum(new_crew_prob_matrix)
@@ -239,10 +238,10 @@ class Bot1:
         else:
             print("Going random.")
             # If no move is significantly better, the bot could either stay in place or pick a random safe move.
+            self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
             safe_moves = [move for move in directions if
                           self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
             if safe_moves:
-                self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
                 chosen_move = random.choice(safe_moves)
                 self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
             else:
@@ -251,7 +250,7 @@ class Bot1:
         self.update_grid()
 
     def is_move_safe(self, x, y):
-        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A'
+        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A' and self.grid[x, y] != '#'
 
     # Ensure the move_alien_randomly and other relevant methods also respect walls.
 
