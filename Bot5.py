@@ -123,9 +123,26 @@ class Bot5:
     print("\n")
 
     def update_prob_matrices_initial(self):
-        total_open_cells = np.sum(self.grid == '.')
-        self.crew_prob_matrix = np.where(self.grid == '.', 1 / total_open_cells, 0)
-        self.alien_prob_matrix = np.where(self.grid == '.', 1 / total_open_cells, 0)
+        crew_unoccupied_cells = self.dimension ** 2 - len(
+        [pos for pos in self.crew_positions if pos is not None]) - 1  # Minus 1 for the bot's position
+
+        for x in range(self.dimension):
+            for y in range(self.dimension):
+                if self.grid[x, y] != '#':  # Check if the cell is not a wall
+                    # Update alien probability matrix
+                    if self.distance((x, y), self.bot_pos) > 2 * self.k + 1:
+                        self.alien_prob_matrix[x, y] = 1 / (self.dimension ** 2 - (2 * self.k + 1) ** 2)
+                    else:
+                        self.alien_prob_matrix[
+                            x, y] = 0  # Cells within the k-radius are initially improbable for the alien
+
+                    # Split the crew probability between the two possible crew member locations
+                    # For simplicity, we equally distribute probability among all non-wall cells
+                    self.crew_prob_matrix[x, y] = 1 / crew_unoccupied_cells
+
+        # Normalize each matrix to ensure their probabilities sum to 1
+        self.crew_prob_matrix /= np.sum(self.crew_prob_matrix)
+        self.alien_prob_matrix /= np.sum(self.alien_prob_matrix)
 
     """
     def print_crew_prob_matrix(self):
@@ -169,7 +186,6 @@ class Bot5:
         # Temporary matrices to hold the updated probabilities, keeps track of past probabilities
         new_alien_prob_matrix = np.zeros_like(self.alien_prob_matrix)
         
-
         for _ , crew_pos in enumerate(self.crew_positions):
             if crew_pos is None:
                 continue  # skip updating the rescued crew prob matrix
@@ -222,7 +238,7 @@ class Bot5:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 1.5
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 2
                     else:
                         # Decrease likelihood for positions outside of sensing range
                         new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.01
@@ -268,7 +284,7 @@ class Bot5:
             
             # If best move leads back to a recently visited cell, start random move sequence
             if best_move and (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1]) in self.last_positions:
-                self.random_move_count = 4  # Number of random moves to make
+                self.random_move_count = 3  # Number of random moves to make
                 self.move_bot_randomly(directions)  # Define this method to handle random movement
             # Execute the best move if found
             elif best_move and best_utility > 0.0:

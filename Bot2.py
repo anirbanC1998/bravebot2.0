@@ -23,6 +23,10 @@ class Bot2:
         self.alien_prob_matrix = np.zeros((dimension, dimension))
         self.visited_matrix = np.zeros((self.dimension, self.dimension))
 
+        #To prevent move cycling
+        self.last_positions = []
+        self.random_move_count = 0
+
         self.update_grid()
 
         # Intializes both alien and crew prob matrices
@@ -206,7 +210,7 @@ class Bot2:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 1.5
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 2
                     else:
                         # Decrease likelihood for positions outside of sensing range
                         new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.01
@@ -219,38 +223,49 @@ class Bot2:
     def move_based_on_prob(self):
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # Up, Right, Down, Left
         best_move = None
-        best_utility = float('-inf')
-
-        for dx, dy in directions:
-            nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
-
-            # Ensure the move is within bounds and not into a wall.
-            if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[
-                nx, ny] != 'A':
-                current_utility = self.calculate_move_utility((nx, ny))
-                if (self.grid[nx, ny] == 'C'):
-                    best_move = (dx, dy)
-                    break
-
-                if current_utility > best_utility:
-                    best_utility = current_utility
-                    best_move = (dx, dy)
-
-        # Execute the best move if found
-        if best_move and best_utility > 0.0:
-            self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
-            self.visited_matrix[self.bot_pos] = 1  # Mark as visited
-        else:
-            print("Going random.")
-            # If no move is significantly better, the bot could either stay in place or pick a random safe move.
-            self.visited_matrix[self.bot_pos] = 1 
-            safe_moves = [move for move in directions if
-                          self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
+        best_utility = float('-inf')  # Initialize with lowest possible score for crew
+        
+        #Check for Move Cycling
+        if self.random_move_count > 0:
+            safe_moves = [move for move in directions if self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
             if safe_moves:
                 chosen_move = random.choice(safe_moves)
                 self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
+                self.random_move_count -= 1
+                print("Moving randomly to prevent move cycling")
             else:
-                print("Staying in place due to no safe moves.")
+                print("Staying in place due to no safe moves. Still preventing move cycling")
+        else:
+
+            for dx, dy in directions:
+                nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
+                # Ensure the move is within bounds and not into a wall.
+                if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[
+                    nx, ny] != 'A':
+                    if (self.grid[nx, ny] == 'C'):
+                        best_move = (dx, dy)
+                        best_utility = 1.0
+                        break
+                    current_utility = self.calculate_move_utility((nx, ny))
+                    # Calculate utility based utility function
+                    # Choose the move with the highest utility that maximizes crew probability and minimizes alien risk
+                    if current_utility > best_utility:
+                        best_utility = current_utility
+                        best_move = (dx, dy)
+
+            
+            # If best move leads back to a recently visited cell, start random move sequence
+            if best_move and (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1]) in self.last_positions:
+                self.random_move_count = 3  # Number of random moves to make
+                self.move_bot_randomly(directions)  # Define this method to handle random movement
+            # Execute the best move if found
+            elif best_move and best_utility > 0.0:
+                self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
+                self.update_position_and_history(best_move)
+            else:
+                print("Going random, not move cycling")
+                self.move_bot_randomly(directions)
+            
 
         self.update_grid()
     
@@ -275,6 +290,26 @@ class Bot2:
         proximity_bonus = 1 / (distance_to_highest_prob + 1)  # Avoid division by zero
 
         return utility + proximity_bonus
+    
+     #Keep track of Bot movement history
+    def update_position_and_history(self, best_move):
+        # Update bot's position
+        new_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
+        self.bot_pos = new_pos
+        # Update history
+        if len(self.last_positions) >= 2:
+            self.last_positions.pop(0)  # Remove the oldest position if there are already 2
+        self.last_positions.append(new_pos)
+
+    #Move bot randomly if it move cycles.
+    def move_bot_randomly(self, directions):
+        safe_moves = [move for move in directions if self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
+        if safe_moves:
+            chosen_move = random.choice(safe_moves)
+            self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
+            print("Random move due no good move, ties everywhere")
+        else:
+            print("Staying in place due to no safe moves.")
 
     def run(self):
         steps = 0

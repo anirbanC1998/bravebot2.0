@@ -182,7 +182,6 @@ class Bot6:
                 random.random() <= np.exp(-self.alpha * (self.distance(self.bot_pos, crew_pos) - 1)) for crew_pos in
                 self.crew_positions if crew_pos is not None)
         # Check if Alien is within the radius
-        alien_distance = min(self.distance(self.bot_pos, pos) for pos in self.alien_positions)
         alien_sensed = (self.distance(self.bot_pos, self.alien_positions[0]) <= (2 * self.k + 1) or
                         self.distance(self.bot_pos, self.alien_positions[1]) <= (2 * self.k + 1))
         return beep_detected, alien_sensed
@@ -194,7 +193,8 @@ class Bot6:
                 continue  # skip updating the rescued crew prob matrix
 
             # Temporary matrices to hold the updated probabilities, keeps track of past probabilities
-            temp_crew_prob_matrix = np.zeros_like(self.crew_prob_matrices[i])
+            new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrices[i])
+
 
             # Update crew probability matrix using Bayesian updating
             for x in range(self.dimension):
@@ -203,43 +203,43 @@ class Bot6:
                     if self.grid[x, y] == '#':
                         self.crew_prob_matrices[i][x, y] = 0
                         continue
-
-                    exploration_bonus = 0.1  # Value to incentivize exploration; adjust as needed
+                    
                     distance = self.distance((x, y), self.bot_pos)
                     beep_probability = np.exp(-self.alpha * (distance - 1))  # for each crew member
 
                     if beep_detected:
-                        if distance < self.distance(self.bot_pos, self.crew_prob_matrices[i][x, y]):
+                        if distance < self.distance(self.bot_pos, crew_pos):
                             # Update based on the likelihood of detecting a beep given the crew is at (x, y)
-                            temp_crew_prob_matrix[x, y] = self.crew_prob_matrices[i][x, y] * beep_probability
+                            new_crew_prob_matrix[x, y] = self.crew_prob_matrices[i][x, y] * beep_probability
                         else:
-                            temp_crew_prob_matrix[x, y] = self.crew_prob_matrices[i][x, y] * (1 - beep_probability)
+                            new_crew_prob_matrix[x, y] = self.crew_prob_matrices[i][x, y] * (1 - beep_probability)
 
                     # Apply exploration incentive for unvisited cells
                     if self.visited_matrix[x, y] == 0:
-                        temp_crew_prob_matrix[x, y] *= (1 + exploration_bonus)
-                    else:
-                        # Penalize revisiting cells to discourage backtracking
-                        temp_crew_prob_matrix[x, y] *= 0.5  # Penalize; adjust penalty as appropriate
-
+                        new_crew_prob_matrix[x, y] = self.crew_prob_matrices[i][x, y] * 10
+                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrices[i][x, y] *0.001 # adjust penalty for not going back
+                    
             # Normalize the crew probability matrix to ensure probabilities sum to 1
-            total_crew_prob = np.sum(temp_crew_prob_matrix)
+            total_crew_prob = np.sum(new_crew_prob_matrix)
             if total_crew_prob > 0:
-                self.crew_prob_matrices[i] = temp_crew_prob_matrix / total_crew_prob
+                self.crew_prob_matrices[i] = new_crew_prob_matrix / total_crew_prob
 
         # Update alien probability matrix using Bayesian updating
         if alien_sensed:
+            new_alien_prob_matrix0 = np.zeros_like(self.alien_prob_matrices[0])
+            new_alien_prob_matrix1 = np.zeros_like(self.alien_prob_matrices[1])
             for dx in range(-2 * self.k, 2 * self.k + 1):
                 for dy in range(-2 * self.k, 2 * self.k + 1):
                     x, y = self.bot_pos[0] + dx, self.bot_pos[1] + dy
                     if 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != '#':
-                        self.alien_prob_matrices[0][x, y] += 1
-                        self.alien_prob_matrices[1][x, y] += 1
+                        new_alien_prob_matrix0[x, y] = self.alien_prob_matrices[0][x,y] * 2
+                        new_alien_prob_matrix1[x, y] = self.alien_prob_matrices[1][x,y] * 2
+                        
                         # Need to figure if probability differs if we always assume worst case
 
             # Normalize the crew probability matrix to ensure probabilities sum to 1
-            total_alien_prob_1 = np.sum(self.alien_prob_matrices[0])
-            total_alien_prob_2 = np.sum(self.alien_prob_matrices[1])
+            total_alien_prob_1 = np.sum(new_alien_prob_matrix0)
+            total_alien_prob_2 = np.sum(new_alien_prob_matrix1)
             if total_alien_prob_1 > 0 and total_alien_prob_2:
                 self.alien_prob_matrices[0] /= total_alien_prob_1
                 self.alien_prob_matrices[1] /= total_alien_prob_2
@@ -270,7 +270,7 @@ class Bot6:
                     best_move = (dx, dy)
 
         # Execute the best move if found
-        if best_move and best_crew_score > float('-inf'):
+        if best_move and best_crew_score > 0.0:
             self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
             self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
         else:
@@ -322,7 +322,7 @@ class Bot6:
             self.print_grid()
 
             # self.print_crew_prob_matrix()
-            for i, crew_pos in enumerate(
+            for _ , crew_pos in enumerate(
                     self.crew_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
                 if crew_pos and self.bot_pos == crew_pos:
                     print(f"Bot 6 rescued crew member at position {crew_pos}")
@@ -333,14 +333,16 @@ class Bot6:
             if all(crew_pos is None for crew_pos in self.crew_positions):  # End simulation if everyone is rescued
                 return True, steps
 
-            if self.bot_pos == any(self.alien_positions):
-                print(f"Bot 6 was destroyed by the alien after {steps + 1} steps.")
-                return False, steps
-
+            for _ , alien_pos in enumerate(
+                    self.alien_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
+                if self.bot_pos == alien_pos:
+                    print(f"Bot 6 was destroyed by the aliens after {steps + 1} steps.")
+                    return False, steps
+        
             steps += 1
 
 
 if __name__ == "__main__":
-    bot = Bot6(dimension=15, alpha=0.05, k=1)
+    bot = Bot6(dimension=10, alpha=0.05, k=1)
     result, steps = bot.run()
     print(result, steps)

@@ -211,7 +211,7 @@ class Bot4:
                     # Apply exploration incentive for unvisited cells
                     if self.visited_matrix[x, y] == 0:
                         new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 10
-                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] * 0.1 # adjust penalty for not going back
+                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] * 0.01 # adjust penalty for not going back
 
             # Normalize the crew probability matrix to ensure probabilities sum to 1
             total_crew_prob = np.sum(new_crew_prob_matrix)
@@ -229,7 +229,7 @@ class Bot4:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 1.5
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 2
                     else:
                         # Decrease likelihood for positions outside of sensing range
                         new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.01

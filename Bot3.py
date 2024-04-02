@@ -228,7 +228,7 @@ class Bot3:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 1.5
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 2
                     else:
                         # Decrease likelihood for positions outside of sensing range
                         new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.01
