@@ -237,7 +237,7 @@ class Bot5:
                 nx, ny] != 'A':
                 if (self.grid[nx, ny] == 'C'):
                     best_move = (dx, dy)
-                    best_crew_score = 1.0
+                    best_utility = 1.0
                     break
                 current_utility = self.calculate_move_utility((nx, ny))
                 # Calculate utility based utility function
@@ -319,7 +319,7 @@ class Bot5:
             for i, crew_pos in enumerate(
                     self.crew_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
                 if crew_pos and self.bot_pos == crew_pos:
-                    print(f"Rescued crew member at position {crew_pos}")
+                    print(f"Bot 5 rescued crew member at position {crew_pos}")
                     self.crew_positions[i] = None
 
             self.update_grid()
@@ -328,7 +328,7 @@ class Bot5:
                 return (True, steps)
 
             if self.bot_pos == self.alien_pos:
-                print(f"Bot 1 was destroyed by the alien after {steps + 1} steps.")
+                print(f"Bot 5 was destroyed by the alien after {steps + 1} steps.")
                 return (False, steps)
 
             steps += 1

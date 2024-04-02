@@ -304,7 +304,7 @@ class Bot4:
             for i, crew_pos in enumerate(
                     self.crew_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
                 if crew_pos and self.bot_pos == crew_pos:
-                    print(f"Rescued crew member at position {crew_pos}")
+                    print(f"Bot 4 rescued crew member at position {crew_pos}")
                     self.crew_positions[i] = None
 
             self.update_grid()
@@ -313,7 +313,7 @@ class Bot4:
                 return (True, steps)
 
             if self.bot_pos == self.alien_pos:
-                print(f"Bot 1 was destroyed by the alien after {steps + 1} steps.")
+                print(f"Bot 4 was destroyed by the alien after {steps + 1} steps.")
                 return (False, steps)
 
             steps += 1

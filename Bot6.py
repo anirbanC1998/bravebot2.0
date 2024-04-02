@@ -129,7 +129,7 @@ class Bot6:
         for x in range(self.dimension):
             for y in range(self.dimension):
                 if self.grid[x, y] != '#':  # Check if the cell is not a wall
-                    # Update alien probability matrix, only check within the radisu
+                    # Update alien probability matrix, only check within the radius
                     if self.distance((x, y), self.bot_pos) > 2 * self.k + 1:
                         self.alien_prob_matrices[0][x, y] = 1 / (self.dimension ** 2 - (2 * self.k + 1) ** 2)
                         self.alien_prob_matrices[1][x, y] = 1 / (self.dimension ** 2 - (2 * self.k + 1) ** 2)
@@ -209,7 +209,7 @@ class Bot6:
                     beep_probability = np.exp(-self.alpha * (distance - 1))  # for each crew member
 
                     if beep_detected:
-                        if distance < self.distance(self.bot_pos, self.crew_prob_matrices[i]):
+                        if distance < self.distance(self.bot_pos, self.crew_prob_matrices[i][x, y]):
                             # Update based on the likelihood of detecting a beep given the crew is at (x, y)
                             temp_crew_prob_matrix[x, y] = self.crew_prob_matrices[i][x, y] * beep_probability
                         else:
@@ -325,7 +325,7 @@ class Bot6:
             for i, crew_pos in enumerate(
                     self.crew_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
                 if crew_pos and self.bot_pos == crew_pos:
-                    print(f"Rescued crew member at position {crew_pos}")
+                    print(f"Bot 6 rescued crew member at position {crew_pos}")
                     self.crew_positions[i] = None
 
             self.update_grid()
@@ -334,7 +334,7 @@ class Bot6:
                 return True, steps
 
             if self.bot_pos == any(self.alien_positions):
-                print(f"Bot 1 was destroyed by the alien after {steps + 1} steps.")
+                print(f"Bot 6 was destroyed by the alien after {steps + 1} steps.")
                 return False, steps
 
             steps += 1
