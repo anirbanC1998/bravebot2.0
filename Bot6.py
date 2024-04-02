@@ -288,7 +288,7 @@ class Bot6:
         self.update_grid()
 
     def is_move_safe(self, x, y):
-        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A'
+        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A' and self.grid[x, y] != '#'
 
     # Ensure the move_alien_randomly and other relevant methods also respect walls.
 

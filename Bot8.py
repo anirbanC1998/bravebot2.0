@@ -7,7 +7,7 @@ class Bot8:
     # Bot 8 is exactly like Bot7, but with 2 crew members, 2 alien members and their own probability matrices, with correct joint update
     # And the utility function from Bot 6 and 2, maybe modify with 2 crew, 2 alien.. idk.
 
-    def __init__(self, dimension=10, alpha=0.01, k=5):
+    def __init__(self, dimension=35, alpha=0.01, k=5):
         self.dimension = dimension
         self.alpha = alpha
         self.k = k
@@ -273,7 +273,7 @@ class Bot8:
         self.update_grid()
 
     def is_move_safe(self, x, y):
-        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A'
+        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A' and self.grid[x, y] != '#'
 
     # Ensure the move_alien_randomly and other relevant methods also respect walls.
 

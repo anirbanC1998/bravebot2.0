@@ -183,13 +183,12 @@ class Bot4:
         # Temporary matrices to hold the updated probabilities, keeps track of past probabilities
         new_alien_prob_matrix = np.zeros_like(self.alien_prob_matrix)
 
-        for i, crew_pos in enumerate(self.crew_positions):
+        for _ , crew_pos in enumerate(self.crew_positions):
             if crew_pos is None:
                 continue  # skip updating the rescued crew prob matrix
 
             # Temporary matrices to hold the updated probabilities, keeps track of past probabilities
             new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
-
 
             # Update crew probability matrix using Bayesian updating
             for x in range(self.dimension):
