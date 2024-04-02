@@ -249,8 +249,13 @@ class Bot2:
 
     def calculate_move_utility(self, pos):
         if self.grid[pos] == '#':  # Ignore walls
+<<<<<<< Updated upstream
             return float('-inf')  # Assign very low utility
 
+=======
+            return float('-inf')  # Assign negative utility
+        
+>>>>>>> Stashed changes
         crew_prob = self.crew_prob_matrix[pos]
         alien_risk = self.alien_prob_matrix[pos]
         visited_penalty = 0 if self.visited_matrix[pos] == 0 else -1  # Penalize visited cells
