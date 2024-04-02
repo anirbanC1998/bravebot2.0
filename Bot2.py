@@ -174,8 +174,7 @@ class Bot2:
                 if self.grid[x, y] == '#':
                     self.crew_prob_matrix[x, y] = 0
                     continue
-
-                exploration_bonus = 0.1  # Value to incentivize exploration; adjust as needed
+                
                 distance = self.distance((x, y), self.bot_pos)
                 beep_probability = np.exp(-self.alpha * (distance - 1))
 
@@ -186,13 +185,12 @@ class Bot2:
                     else:
                         new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * (1 - beep_probability)
 
-                # Apply exploration incentive for unvisited cells
-                if self.visited_matrix[x, y] == 0:
-                    new_crew_prob_matrix[x, y] *= (1 + exploration_bonus)
+                # Apply exploration incentive for unvisited cells, crew member is never there
+                if(self.visited_matrix[x, y] == 0):
+                    new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 10
                 else:
-                    # Penalize revisiting cells to discourage backtracking
-                    new_crew_prob_matrix[x, y] *= 0.5  # Penalize; adjust penalty as appropriate
-
+                    new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 0.1
+                    
         # Normalize the crew probability matrix to ensure probabilities sum to 1
         total_crew_prob = np.sum(new_crew_prob_matrix)
         if total_crew_prob > 0:
@@ -209,10 +207,10 @@ class Bot2:
 
                     if self.distance((x, y), self.bot_pos) <= (2 * self.k + 1):
                         # If alien is sensed and within range, increase probability
-                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 1.1
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 1.5
                     else:
                         # Decrease likelihood for positions outside of sensing range
-                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.1
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.01
 
             # Normalize the alien probability matrix to ensure probabilities sum to 1
             total_alien_prob = np.sum(new_alien_prob_matrix)
@@ -240,12 +238,25 @@ class Bot2:
                     best_move = (dx, dy)
 
         # Execute the best move if found
-        if best_move and best_utility > float('-inf'):
+        if best_move and best_utility > 0.0:
             self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
             self.visited_matrix[self.bot_pos] = 1  # Mark as visited
-            self.update_grid()  # Update the grid to reflect the new bot position
         else:
-            print("Staying in place")
+            print("Going random.")
+            # If no move is significantly better, the bot could either stay in place or pick a random safe move.
+            safe_moves = [move for move in directions if
+                          self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
+            if safe_moves:
+                self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
+                chosen_move = random.choice(safe_moves)
+                self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
+            else:
+                print("Staying in place due to no safe moves.")
+
+        self.update_grid()
+    
+    def is_move_safe(self, x, y):
+        return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A'
 
     def calculate_move_utility(self, pos):
         if self.grid[pos] == '#':  # Ignore walls
@@ -296,6 +307,6 @@ class Bot2:
 
 
 if __name__ == "__main__":
-    bot = Bot2(dimension=35, alpha=0.05, k=1)
+    bot = Bot2(dimension=15, alpha=0.05, k=1)
     result, steps = bot.run()
     print(result, steps)
