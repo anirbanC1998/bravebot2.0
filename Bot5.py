@@ -301,7 +301,7 @@ class Bot5:
 
     def run(self):
         steps = 0
-        while steps <= 10000:
+        while True: #Game ends when alien catches roomba, or crew is saved
             beep_detected, alien_sensed = self.sense_environment()
             self.update_prob_matrices(beep_detected, alien_sensed)
             self.move_based_on_prob()
@@ -332,8 +332,6 @@ class Bot5:
                 return (False, steps)
 
             steps += 1
-
-        return False, steps
 
 
 if __name__ == "__main__":
