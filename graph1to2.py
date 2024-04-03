@@ -8,7 +8,6 @@ from Bot2 import Bot2
 def simulate_bot(bot_class, alpha, k, num_trials):
     success_count = 0
     total_moves = 0
-    crew_saved = 0
 
     for _ in range(num_trials):
         bot = bot_class(dimension = 35,alpha=alpha, k=k)
