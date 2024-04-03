@@ -256,9 +256,9 @@ class Bot8:
                 chosen_move = random.choice(safe_moves)
                 self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
                 self.random_move_count -= 1
-                print("Moving randomly to prevent move cycling")
+               # print("Moving randomly to prevent move cycling")
             else:
-                print("Staying in place due to no safe moves. Still preventing move cycling")
+               print("Staying in place due to no safe moves. Still preventing move cycling")
         else:
         
             for dx, dy in directions:
@@ -287,7 +287,7 @@ class Bot8:
                 self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
                 self.update_position_and_history(best_move)
             else:
-                print("Going random, not move cycling")
+                #print("Going random, not move cycling")
                 self.move_bot_randomly(directions)
 
         self.update_grid()
@@ -346,35 +346,35 @@ class Bot8:
         if safe_moves:
             chosen_move = random.choice(safe_moves)
             self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
-            print("Random move due no good move, ties everywhere")
+           # print("Random move due no good move, ties everywhere")
         else:
-            print("Staying in place due to no safe moves.")
+           print("Staying in place due to no safe moves.")
 
     def run(self):
         steps = 0
         crew_saved = 0
-        while True: #Game ends when alien catches roomba, or crew is saved
+        while steps < 50000: #Game ends when alien catches roomba, or crew is saved
             beep_detected, alien_sensed = self.sense_environment()
             self.update_prob_matrices(beep_detected, alien_sensed)
             self.move_based_on_prob()
             self.move_alien_randomly()
             # print(f"Crew Distance: {self.distance(self.bot_pos, self.crew_pos)}")
             # print(f"Alien Distance: {self.distance(self.bot_pos, self.alien_pos)}")
-            print(f"Beep Detected: {beep_detected}, Alien Sensed: {alien_sensed}")
-            print(f"Position Bot: {self.bot_pos}")
-            for i in range(2):
-                print(f"Position of Crew: {self.crew_positions[i]}")
-                print(f"Position Alien: {self.alien_positions[i]}")
-            self.print_grid()
+            #print(f"Beep Detected: {beep_detected}, Alien Sensed: {alien_sensed}")
+            #print(f"Position Bot: {self.bot_pos}")
+            #for i in range(2):
+                #print(f"Position of Crew: {self.crew_positions[i]}")
+               # print(f"Position Alien: {self.alien_positions[i]}")
+            #self.print_grid()
 
             # self.print_crew_prob_matrix()
-            for _ , crew_pos in enumerate(
+            for i , crew_pos in enumerate(
                     self.crew_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
                 if crew_pos and self.bot_pos == crew_pos:
                     print(f"Bot 8 rescued crew member at position {crew_pos}")
                     self.crew_positions[i] = None
                     crew_saved += 1
-            print(f"Step: {steps}.")
+            #print(f"Step: {steps}.")
             self.update_grid()
             
             if all(crew_pos is None for crew_pos in self.crew_positions):  # End simulation if everyone is rescued
@@ -383,11 +383,11 @@ class Bot8:
             for _ , alien_pos in enumerate(
                     self.alien_positions):  # Need to keep track if Alien killed Bot
                 if self.bot_pos == alien_pos:
-                    print(f"Bot 6 was destroyed by the aliens after {steps + 1} steps.")
+                    print(f"Bot 8 was destroyed by the aliens after {steps + 1} steps.")
                     return False, steps, crew_saved
 
             steps += 1
-
+        return False, steps, crew_saved
 
 if __name__ == "__main__":
     bot = Bot8(dimension=15, alpha=0.05, k=1)

@@ -356,19 +356,19 @@ class Bot5:
     def run(self):
         steps = 0
         crew_saved = 0
-        while True: #Game ends when alien catches roomba, or crew is saved
+        while steps < 50000: #Game ends when alien catches roomba, or crew is saved
             beep_detected, alien_sensed = self.sense_environment()
             self.update_prob_matrices(beep_detected, alien_sensed)
             self.move_based_on_prob()
             self.move_alien_randomly()
             # print(f"Crew Distance: {self.distance(self.bot_pos, self.crew_pos)}")
-            print(f"Alien Distance: {self.distance(self.bot_pos, self.alien_pos)}")
-            print(f"Beep Detected: {beep_detected}, Alien Sensed: {alien_sensed}")
-            print(f"Position Bot: {self.bot_pos}")
-            for i in range(2):
-                print(f"Position of Crew: {self.crew_positions[i]}")
-            print(f"Position Alien: {self.alien_pos}")
-            self.print_grid()
+            #print(f"Alien Distance: {self.distance(self.bot_pos, self.alien_pos)}")
+           # print(f"Beep Detected: {beep_detected}, Alien Sensed: {alien_sensed}")
+            #print(f"Position Bot: {self.bot_pos}")
+            #for i in range(2):
+                #print(f"Position of Crew: {self.crew_positions[i]}")
+            #print(f"Position Alien: {self.alien_pos}")
+            #self.print_grid()
 
             # self.print_crew_prob_matrix()
             for i, crew_pos in enumerate(
@@ -388,7 +388,7 @@ class Bot5:
                 return (False, steps, crew_saved)
 
             steps += 1
-
+        return (False, steps, crew_saved)
 
 if __name__ == "__main__":
     bot = Bot5(dimension=15, alpha=0.05, k=1)
