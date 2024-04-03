@@ -217,7 +217,7 @@ class Bot6:
                     # Apply exploration incentive for unvisited cells
                     if self.visited_matrix[x, y] == 0:
                         new_crew_prob_matrix[x, y] = self.crew_prob_matrices[i][x, y] * 10
-                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrices[i][x, y] *0.001 # adjust penalty for not going back
+                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrices[i][x, y] - 1# adjust penalty for not going back
                     
             # Normalize the crew probability matrix to ensure probabilities sum to 1
             total_crew_prob = np.sum(new_crew_prob_matrix)
@@ -334,7 +334,7 @@ class Bot6:
                 return True, steps
 
             for _ , alien_pos in enumerate(
-                    self.alien_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
+                    self.alien_positions):  # Need to keep track if Alien killed Bot
                 if self.bot_pos == alien_pos:
                     print(f"Bot 6 was destroyed by the aliens after {steps + 1} steps.")
                     return False, steps

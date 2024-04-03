@@ -219,7 +219,7 @@ class Bot5:
                     # Apply exploration incentive for unvisited cells, Hansel & Gretel approach
                     if self.visited_matrix[x, y] == 0:
                             new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 10
-                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] * 0.1
+                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] - 1
                     # adjust penalty for not going back
 
             # Normalize the crew probability matrix to ensure probabilities sum to 1
