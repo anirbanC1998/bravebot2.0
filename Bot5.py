@@ -126,15 +126,15 @@ class Bot5:
         crew_unoccupied_cells = self.dimension ** 2 - len(
         [pos for pos in self.crew_positions if pos is not None]) - 1  # Minus 1 for the bot's position
 
+        alien_cells = self.dimension**2 - ((2*self.k+1)**2) - 1
         for x in range(self.dimension):
             for y in range(self.dimension):
                 if self.grid[x, y] != '#':  # Check if the cell is not a wall
                     # Update alien probability matrix
                     if self.distance((x, y), self.bot_pos) > 2 * self.k + 1:
-                        self.alien_prob_matrix[x, y] = 1 / (self.dimension ** 2 - (2 * self.k + 1) ** 2)
+                        self.alien_prob_matrix[x, y] = 1 / alien_cells
                     else:
-                        self.alien_prob_matrix[
-                            x, y] = 0  # Cells within the k-radius are initially improbable for the alien
+                        self.alien_prob_matrix[x, y] = 0  # Cells within the k-radius are initially improbable for the alien
 
                     # Split the crew probability between the two possible crew member locations
                     # For simplicity, we equally distribute probability among all non-wall cells

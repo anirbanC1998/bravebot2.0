@@ -28,6 +28,10 @@ class Bot8:
         self.alien_prob_matrix = np.zeros((dimension, dimension))
         self.visited_matrix = np.zeros((self.dimension, self.dimension))
 
+        #To prevent move cycling
+        self.last_positions = []
+        self.random_move_count = 0
+        
         self.update_grid()
 
         # Intializes both alien and crew prob matrices
@@ -134,6 +138,9 @@ class Bot8:
                     # Update alien probability matrix, only check within the radius
                     if self.distance((x, y), self.bot_pos) > 2 * self.k + 1:
                         self.alien_prob_matrix[x, y] = 1 / alien_cells
+                    else:
+                     # Cells within the k-radius are initially improbable for the alien
+                        self.alien_prob_matrix[x, y] = 0 
                     # Split the crew probability between the two possible crew member locations
                     # Equally distribute probability among all non-wall cells
 
@@ -181,94 +188,107 @@ class Bot8:
     def update_prob_matrices(self, beep_detected, alien_sensed):
         
         # Initialize temporary matrices for updating probabilities
-        new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
-        new_alien_prob_matrix = np.zeros_like(self.alien_prob_matrix)
+        for _ , crew_pos in enumerate(self.crew_positions):
+            if crew_pos is None:
+                continue  # skip updating the rescued crew prob matrix
+            
+            new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
+            for x in range(self.dimension):
+                for y in range(self.dimension):
+                    # Skip walls
+                    if self.grid[x, y] == '#':
+                        self.crew_prob_matrix[x, y] = 0
+                        continue
 
-        for x in range(self.dimension):
-            for y in range(self.dimension):
-                # Skip walls
-                if self.grid[x, y] == '#':
-                    self.crew_prob_matrix[x, y] = 0
-                    continue
+                    distance = self.distance((x, y), self.bot_pos)
 
-                exploration_bonus = 0.1  # Value to incentivize exploration; adjust as needed
-                distance = self.distance((x, y), self.bot_pos)
-                beep_probability = np.exp(-self.alpha * (distance - 1))  # for each crew member
+                    if beep_detected:
+                        if distance < self.distance(self.bot_pos, crew_pos):
+                            # Update based on the likelihood of detecting a beep given the crew is at (x, y)
+                            #Different way of applying Bayes updating
+                            factor = np.fromfunction(lambda x, y: np.exp(
+                                -self.alpha * (np.abs(x - self.bot_pos[0]) + np.abs(y - self.bot_pos[1]) - 1)),
+                                                    shape=(self.dimension, self.dimension))
+                            self.crew_prob_matrix *= factor
+                            new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y]
+                        else:
+                            self.crew_prob_matrix *= 1 - np.fromfunction(lambda x, y: np.exp(
+                                -self.alpha * (np.abs(x - self.bot_pos[0]) + np.abs(y - self.bot_pos[1]) - 1)),
+                                                                        shape=(self.dimension, self.dimension))
+                            new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y]
 
-                if beep_detected:
-                    if distance < self.distance(self.bot_pos, self.crew_prob_matrix[x, y]):
-                        # Update based on the likelihood of detecting a beep given the crew is at (x, y)
-                        new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * beep_probability
-                    else:
-                        new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * (1 - beep_probability)
+                    # Apply exploration incentive for unvisited cells
+                    if self.visited_matrix[x, y] == 0:
+                        new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 10
+                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] - 1
+                    # adjust penalty for not going back
 
-                # Apply exploration incentive for unvisited cells
-                if self.visited_matrix[x, y] == 0:
-                    new_crew_prob_matrix[x, y] *= (1 + exploration_bonus)
-                else:
-                    # Penalize revisiting cells to discourage backtracking
-                    new_crew_prob_matrix[x, y] *= 0.5  # Penalize; adjust penalty as appropriate
+            # Normalize crew probability matrix
+            total_prob = np.sum(new_crew_prob_matrix)
+            if total_prob > 0:
+                self.crew_prob_matrix = new_crew_prob_matrix / total_prob
 
-        # Normalize crew probability matrix
-        total_prob = np.sum(new_crew_prob_matrix)
-        if total_prob > 0:
-            self.crew_joint_prob_matrix = new_crew_prob_matrix / total_prob
-
+        if alien_sensed:
+            new_alien_prob_matrix = np.zeros_like(self.alien_prob_matrix)
         # Update alien probability matrix using Bayesian updating within the radius
-        for dx in range(-2 * self.k, 2 * self.k + 1):
-            for dy in range(-2 * self.k, 2 * self.k + 1):
-                x, y = self.bot_pos[0] + dx, self.bot_pos[1] + dy
-                if 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != '#' and alien_sensed:
-                    new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 2
-                    # Need to figure if probability differs if we always assume worst case, I'll use 2 for now
-                else:
-                    new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.1 
-                    # Do not wipe out past alien data completely, what if an alien went out, and then went back
+            for dx in range(-2 * self.k, 2 * self.k + 1):
+                for dy in range(-2 * self.k, 2 * self.k + 1):
+                    x, y = self.bot_pos[0] + dx, self.bot_pos[1] + dy
+                    if 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != '#' and alien_sensed:
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 4 #2 aliens, so double?
+                        # Need to figure if probability differs if we always assume worst case, I'll use 2 for now
 
-        # Normalize the crew probability matrix to ensure probabilities sum to 1
-         # Normalize the alien probability matrix
-        total_prob = np.sum(new_alien_prob_matrix)
-        if total_prob > 0:
-            self.alien_joint_prob_matrix = new_alien_prob_matrix / total_prob
+            # Normalize the crew probability matrix to ensure probabilities sum to 1
+                # Normalize the alien probability matrix
+            total_prob = np.sum(new_alien_prob_matrix)
+            if total_prob > 0:
+                self.alien_prob_matrix = new_alien_prob_matrix / total_prob
 
     def move_based_on_prob(self):
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # Up, Right, Down, Left
         best_move = None
         best_utility = float('-inf')  # Initialize with lowest possible score for crew
 
-        for dx, dy in directions:
-            nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
-            # Ensure the move is within bounds and not into a wall.
-            # The bot can see whats next to it, it will obviously go to crew, and obviously avoid aliens
-            if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[
-                nx, ny] != 'A':
-                if (self.grid[nx, ny] == 'C'):
-                    best_move = (dx, dy)
-                    best_utility = 1.0
-                    break
-                current_utility = self.calculate_move_utility((nx, ny))
-                # Calculate utility based utility function
-                # Choose the move with the highest utility that maximizes crew probability and minimizes alien risk
-                # Maybe it changes with 2 crew, 2 alien.. maybe...
-                if current_utility > best_utility:
-                    best_utility = current_utility
-                    best_move = (dx, dy)
-
-        # Execute the best move if found
-        if best_move and best_utility > float('-inf'):
-            self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
-            self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
-        else:
-            print("Going random. Cmon")
-            self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
-            # If no move is significantly better, the bot could either stay in place or pick a random safe move.
-            safe_moves = [move for move in directions if
-                          self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
+        #Check for Move Cycling
+        if self.random_move_count > 0:
+            safe_moves = [move for move in directions if self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
             if safe_moves:
                 chosen_move = random.choice(safe_moves)
                 self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
+                self.random_move_count -= 1
+                print("Moving randomly to prevent move cycling")
             else:
-               print("Staying in place due to no safe moves.")
+                print("Staying in place due to no safe moves. Still preventing move cycling")
+        else:
+        
+            for dx, dy in directions:
+                nx, ny = self.bot_pos[0] + dx, self.bot_pos[1] + dy
+                # Ensure the move is within bounds and not into a wall.
+                if 0 <= nx < self.dimension and 0 <= ny < self.dimension and self.grid[nx, ny] != '#' and self.grid[
+                    nx, ny] != 'A':
+                    if (self.grid[nx, ny] == 'C'):
+                        best_move = (dx, dy)
+                        best_utility = 1.0
+                        break
+                    current_utility = self.calculate_move_utility((nx, ny))
+                    # Calculate utility based utility function
+                    # Choose the move with the highest utility that maximizes crew probability and minimizes alien risk
+                    if current_utility > best_utility:
+                        best_utility = current_utility
+                        best_move = (dx, dy)
+
+            
+            # If best move leads back to a recently visited cell, start random move sequence
+            if best_move and (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1]) in self.last_positions:
+                self.random_move_count = 3  # Number of random moves to make
+                self.move_bot_randomly(directions)  # Define this method to handle random movement
+            # Execute the best move if found
+            elif best_move and best_utility > 0.0:
+                self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
+                self.update_position_and_history(best_move)
+            else:
+                print("Going random, not move cycling")
+                self.move_bot_randomly(directions)
 
         self.update_grid()
 
@@ -309,6 +329,26 @@ class Bot8:
         proximity_bonus = 1 / (distance_to_highest_prob + 1)  # Avoid division by zero
 
         return utility + proximity_bonus
+    
+    #Keep track of Bot movement history
+    def update_position_and_history(self, best_move):
+        # Update bot's position
+        new_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
+        self.bot_pos = new_pos
+        # Update history
+        if len(self.last_positions) >= 2:
+            self.last_positions.pop(0)  # Remove the oldest position if there are already 2
+        self.last_positions.append(new_pos)
+
+    #Move bot randomly if it move cycles.
+    def move_bot_randomly(self, directions):
+        safe_moves = [move for move in directions if self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
+        if safe_moves:
+            chosen_move = random.choice(safe_moves)
+            self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
+            print("Random move due no good move, ties everywhere")
+        else:
+            print("Staying in place due to no safe moves.")
 
     def run(self):
         steps = 0
@@ -327,20 +367,22 @@ class Bot8:
             self.print_grid()
 
             # self.print_crew_prob_matrix()
-            for i, crew_pos in enumerate(
+            for _ , crew_pos in enumerate(
                     self.crew_positions):  # Need to keep track of C rescued, if all crew_pos is None, every crew is rescued
                 if crew_pos and self.bot_pos == crew_pos:
                     print(f"Bot 8 rescued crew member at position {crew_pos}")
                     self.crew_positions[i] = None
-
-            self.update_grid()
             print(f"Step: {steps}.")
+            self.update_grid()
+            
             if all(crew_pos is None for crew_pos in self.crew_positions):  # End simulation if everyone is rescued
                 return True, steps
 
-            if self.bot_pos == any(self.alien_positions):
-                print(f"Bot 8 was destroyed by the alien after {steps + 1} steps.")
-                return False, steps
+            for _ , alien_pos in enumerate(
+                    self.alien_positions):  # Need to keep track if Alien killed Bot
+                if self.bot_pos == alien_pos:
+                    print(f"Bot 6 was destroyed by the aliens after {steps + 1} steps.")
+                    return False, steps
 
             steps += 1
 
