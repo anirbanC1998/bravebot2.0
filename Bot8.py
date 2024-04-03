@@ -352,6 +352,7 @@ class Bot8:
 
     def run(self):
         steps = 0
+        crew_saved = 0
         while True: #Game ends when alien catches roomba, or crew is saved
             beep_detected, alien_sensed = self.sense_environment()
             self.update_prob_matrices(beep_detected, alien_sensed)
@@ -372,22 +373,23 @@ class Bot8:
                 if crew_pos and self.bot_pos == crew_pos:
                     print(f"Bot 8 rescued crew member at position {crew_pos}")
                     self.crew_positions[i] = None
+                    crew_saved += 1
             print(f"Step: {steps}.")
             self.update_grid()
             
             if all(crew_pos is None for crew_pos in self.crew_positions):  # End simulation if everyone is rescued
-                return True, steps
+                return True, steps, crew_saved
 
             for _ , alien_pos in enumerate(
                     self.alien_positions):  # Need to keep track if Alien killed Bot
                 if self.bot_pos == alien_pos:
                     print(f"Bot 6 was destroyed by the aliens after {steps + 1} steps.")
-                    return False, steps
+                    return False, steps, crew_saved
 
             steps += 1
 
 
 if __name__ == "__main__":
     bot = Bot8(dimension=15, alpha=0.05, k=1)
-    result, steps = bot.run()
-    print(result, steps)
+    result, steps, crew_saved = bot.run()
+    print(result, steps, crew_saved)
