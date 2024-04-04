@@ -218,9 +218,9 @@ class Bot8:
                             new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y]
 
                     # Apply exploration incentive for unvisited cells
-                    if self.visited_matrix[x, y] == 0:
+                    """if self.visited_matrix[x, y] == 0:
                         new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 10
-                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] - 1
+                    new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] - 1"""
                     # adjust penalty for not going back
 
             # Normalize crew probability matrix
@@ -321,8 +321,8 @@ class Bot8:
 
         crew_prob = self.crew_prob_matrix[pos]
         alien_risk = self.alien_prob_matrix[pos]
-        visited_penalty = 0 if self.visited_matrix[pos] == 0 else -1  # Penalize visited cells
-        exploration_bonus = 0.1 if self.visited_matrix[pos] == 0 else 0  # Encourage exploration
+        visited_penalty = 0 if self.visited_matrix[pos] == 0 else -1  # Penalize visited cells in here
+        exploration_bonus = 0.1 if self.visited_matrix[pos] == 0 else 0  # Encourage exploration, crew will never be where the bot is
 
         # Combine the components to calculate utility
         utility = crew_prob - (alien_risk * 2) + exploration_bonus + visited_penalty
@@ -330,13 +330,12 @@ class Bot8:
         # Proximity bonus: Calculate the distance to the highest probability crew location and adjust utility
         highest_prob_pos = np.unravel_index(np.argmax(self.crew_prob_matrix), self.crew_prob_matrix.shape)
         distance_to_highest_prob = self.distance(pos, highest_prob_pos)
-        proximity_bonus = 1 / (distance_to_highest_prob + 1)  # Avoid division by zero
+        proximity_bonus = 1 / (distance_to_highest_prob + 1)  
 
         return utility + proximity_bonus
     
     #Keep track of Bot movement history
     def update_position_and_history(self, best_move):
-        # Update bot's position
         new_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
         self.bot_pos = new_pos
         # Update history

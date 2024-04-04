@@ -67,8 +67,9 @@ def simulate_and_plot(bot_classes, k_values, alpha_range, num_trials):
 
 if __name__ == "__main__":
     bot_classes = [Bot3, Bot4, Bot5]
-    k_values = [1,3,5]  # Example k values
-    alpha_range = np.linspace(0.001, 0.1, 10)  # Example alpha range
-    num_trials = 50  # Adjust based on your needs
+    k_values = [1,3,5]  
+    alpha_range = np.linspace(0.001, 0.1, 5) 
+    num_trials = 10 # Adjust based on your needs
+
 
     simulate_and_plot(bot_classes, k_values, alpha_range, num_trials)
