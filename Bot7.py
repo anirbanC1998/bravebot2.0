@@ -188,8 +188,6 @@ class Bot7:
         
         for _ , crew_pos in enumerate(self.crew_positions):
             if crew_pos is None:
-                new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
-                self.crew_prob_matrix = new_crew_prob_matrix
                 continue  # skip updating the rescued crew prob matrix
             
             new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
