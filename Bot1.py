@@ -174,11 +174,11 @@ class Bot1:
                         # Update based on the likelihood of detecting a beep given the crew is at (x, y)
                         new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * beep_probability
                     else:
-                        new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * (1 - beep_probability)
+                        new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] *  (1 - beep_probability)
 
                 # Apply exploration incentive for unvisited cells, crew member is never there
                 if self.visited_matrix[x, y] == 0:
-                    new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 10
+                    new_crew_prob_matrix[x, y] = self.crew_prob_matrix[x, y] * 5
                 new_crew_prob_matrix[self.bot_pos] = self.crew_prob_matrix[x, y] - 1 # adjust penalty for not going back
                     
         # Normalize the crew probability matrix to ensure probabilities sum to 1
@@ -200,7 +200,7 @@ class Bot1:
                         new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 2
                     else:
                         # Decrease likelihood for positions outside of sensing range
-                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.01
+                        new_alien_prob_matrix[x, y] = self.alien_prob_matrix[x, y] * 0.1
 
             # Normalize the alien probability matrix to ensure probabilities sum to 1
             total_alien_prob = np.sum(new_alien_prob_matrix)

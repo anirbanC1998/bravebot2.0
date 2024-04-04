@@ -390,6 +390,6 @@ class Bot8:
         return False, steps, crew_saved
 
 if __name__ == "__main__":
-    bot = Bot8(dimension=15, alpha=0.05, k=1)
+    bot = Bot8(dimension=10, alpha=0.05, k=1)
     result, steps, crew_saved = bot.run()
     print(result, steps, crew_saved)

@@ -62,12 +62,12 @@ def simulate_and_plot(bot_classes, k_values, alpha_range, num_trials):
 
         plt.legend()
         plt.tight_layout()
-        plt.savefig('Bot678_performance.png', dpi=300)
+        plt.savefig(f'{k}Bot678_performance.png', dpi=300)
         plt.show()
 
 if __name__ == "__main__":
     bot_classes = [Bot6, Bot7, Bot8]
-    k_values = [1, 3, 5]  # Example k values
+    k_values = [1, 3]  # Example k values
     alpha_range = np.linspace(0.001, 0.1, 10)  # Example alpha range
     num_trials = 25  # Adjust based on your needs
 
