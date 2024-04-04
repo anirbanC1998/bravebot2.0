@@ -190,6 +190,8 @@ class Bot8:
         # Initialize temporary matrices for updating probabilities
         for _ , crew_pos in enumerate(self.crew_positions):
             if crew_pos is None:
+                new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
+                self.crew_prob_matrix = new_crew_prob_matrix
                 continue  # skip updating the rescued crew prob matrix
             
             new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
@@ -254,11 +256,13 @@ class Bot8:
             safe_moves = [move for move in directions if self.is_move_safe(self.bot_pos[0] + move[0], self.bot_pos[1] + move[1])]
             if safe_moves:
                 chosen_move = random.choice(safe_moves)
+                self.visited_matrix[self.bot_pos] = 1
                 self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
                 self.random_move_count -= 1
                # print("Moving randomly to prevent move cycling")
             else:
-               print("Staying in place due to no safe moves. Still preventing move cycling")
+                self.visited_matrix[self.bot_pos] = 1
+                print("Staying in place due to no safe moves. Still preventing move cycling")
         else:
         
             for dx, dy in directions:
@@ -280,7 +284,8 @@ class Bot8:
             
             # If best move leads back to a recently visited cell, start random move sequence
             if best_move and (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1]) in self.last_positions:
-                self.random_move_count = 3  # Number of random moves to make
+                self.visited_matrix[self.bot_pos] = 1
+                self.random_move_count = 2  # Number of random moves to make
                 self.move_bot_randomly(directions)  # Define this method to handle random movement
             # Execute the best move if found
             elif best_move and best_utility > 0.0:
@@ -288,6 +293,7 @@ class Bot8:
                 self.update_position_and_history(best_move)
             else:
                 #print("Going random, not move cycling")
+                self.visited_matrix[self.bot_pos] = 1
                 self.move_bot_randomly(directions)
 
         self.update_grid()
@@ -390,6 +396,6 @@ class Bot8:
         return False, steps, crew_saved
 
 if __name__ == "__main__":
-    bot = Bot8(dimension=10, alpha=0.05, k=1)
+    bot = Bot8(dimension=35, alpha=0.05, k=1)
     result, steps, crew_saved = bot.run()
     print(result, steps, crew_saved)

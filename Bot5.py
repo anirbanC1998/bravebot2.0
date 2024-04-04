@@ -188,6 +188,8 @@ class Bot5:
         
         for _ , crew_pos in enumerate(self.crew_positions):
             if crew_pos is None:
+                new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
+                self.crew_prob_matrix = new_crew_prob_matrix
                 continue  # skip updating the rescued crew prob matrix
             # Update crew probability matrix using Bayesian updating
             new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
@@ -260,9 +262,10 @@ class Bot5:
                 chosen_move = random.choice(safe_moves)
                 self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
                 self.random_move_count -= 1
-                print("Moving randomly to prevent move cycling")
+                #print("Moving randomly to prevent move cycling")
             else:
-                print("Staying in place due to no safe moves. Still preventing move cycling")
+                print("")
+                #print("Staying in place due to no safe moves. Still preventing move cycling")
         else:
 
             for dx, dy in directions:
@@ -284,14 +287,14 @@ class Bot5:
             
             # If best move leads back to a recently visited cell, start random move sequence
             if best_move and (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1]) in self.last_positions:
-                self.random_move_count = 3  # Number of random moves to make
+                self.random_move_count = 2  # Number of random moves to make
                 self.move_bot_randomly(directions)  # Define this method to handle random movement
             # Execute the best move if found
             elif best_move and best_utility > 0.0:
                 self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
                 self.update_position_and_history(best_move)
             else:
-                print("Going random, not move cycling")
+                #print("Going random, not move cycling")
                 self.move_bot_randomly(directions)
             
 
@@ -345,9 +348,10 @@ class Bot5:
         if safe_moves:
             chosen_move = random.choice(safe_moves)
             self.bot_pos = (self.bot_pos[0] + chosen_move[0], self.bot_pos[1] + chosen_move[1])
-            print("Random move due no good move, ties everywhere")
+            #print("Random move due no good move, ties everywhere")
         else:
-            print("Staying in place due to no safe moves.")
+            print("")
+            #print("Staying in place due to no safe moves.")
     
     def is_move_safe(self, x, y):
         return 0 <= x < self.dimension and 0 <= y < self.dimension and self.grid[x, y] != 'A' and self.grid[x, y] != '#'
@@ -379,7 +383,7 @@ class Bot5:
                     self.crew_positions[i] = None
 
             self.update_grid()
-            print(f"Step: {steps}.")
+            #print(f"Step: {steps}.")
             if all(crew_pos is None for crew_pos in self.crew_positions):  # End simulation if everyone is rescued
                 return (True, steps, crew_saved)
 

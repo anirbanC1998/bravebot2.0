@@ -26,7 +26,7 @@ def simulate_for_alpha_range(bot_class, k, alpha_range, num_trials):
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(simulate_bot, bot_class, alpha, k, num_trials) for alpha in alpha_range]
         results = [f.result() for f in futures]
-    return results  # List of tuples (success_rate, avg_moves, avg_crew_saved)
+    return results  # List of tuples (success_rate, avg_moves)
 
 # Function to simulate and plot results for bots, considering multiple k values and alpha range
 def simulate_and_plot(bot_classes, k_values, alpha_range, num_trials):

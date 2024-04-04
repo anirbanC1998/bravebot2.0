@@ -185,6 +185,8 @@ class Bot4:
 
         for _ , crew_pos in enumerate(self.crew_positions):
             if crew_pos is None:
+                new_crew_prob_matrix = np.zeros_like(self.crew_prob_matrix)
+                self.crew_prob_matrix = new_crew_prob_matrix
                 continue  # skip updating the rescued crew prob matrix
 
             # Temporary matrices to hold the updated probabilities, keeps track of past probabilities
@@ -269,7 +271,7 @@ class Bot4:
             self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
             self.bot_pos = (self.bot_pos[0] + best_move[0], self.bot_pos[1] + best_move[1])
         else:
-            print("Going random.")
+            #print("Going random.")
             self.visited_matrix[self.bot_pos] = 1  # Mark the current position as visited
             # If no move is significantly better, the bot could either stay in place or pick a random safe move.
             safe_moves = [move for move in directions if
@@ -324,7 +326,7 @@ class Bot4:
                     self.crew_positions[i] = None
 
             self.update_grid()
-            print(f"Step: {steps}.")
+            #print(f"Step: {steps}.")
             if all(crew_pos is None for crew_pos in self.crew_positions):  # End simulation if everyone is rescued
                 return (True, steps, crew_saved)
 
